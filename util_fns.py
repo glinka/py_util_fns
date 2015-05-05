@@ -91,8 +91,6 @@ def get_header_data(header_str):
     while comma > 0:
         equals = header_str.find("=")
         comma = header_str.find(",")
-
-
         ############################################################################
         #################### NO SUPPORT FOR SCIENTIFIC NOTATION ####################
         ############################################################################
