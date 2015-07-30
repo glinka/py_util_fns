@@ -4,6 +4,54 @@ import os
 import sys
 import time
 
+class parallelize_iterable:
+    """Parallelizes an iterable (with 'len()' defined properly), splitting it into different slices to be operated on by different processors"""
+    def __init__(self, iterable, rank, nprocessors):
+        """Assigns appropriate subsection of 'iterable' based on 'rank' and 'nprocessors'
+
+        Args:
+            iterable (iterator): the object to be split up over different processes, typically a numpy array
+            rank (int): the rank of the process
+            nprocessors (int): total number of processors
+"""        
+
+        # if the array cannot by evenly sliced up...
+        npts = len(iterable)
+        npts_per_proc = npts/nprocessors
+        npts_remainder = npts%nprocessors
+        if npts%nprocessors != 0:
+            # ... and we actually have more processes than entries to pass around
+            # then assign the first 'n' entries to the first 'n' processes
+            if npts < nprocessors:
+                if rank+1 < npts:
+                    self._iterable = iterable[rank]
+                else:
+                    self._iterable = []
+            # ... but there more entries than processes
+            # then assign by increments of 'nentries/nprocessors' as normal, then add the remainders to the last processors
+            else:
+                # first 'nprocessors-npts_remainder' processes receive normal 'npts_per_proc' entries
+                # e.g. range(7) split over 4 arrays looks like:
+                # proc | entries
+                #   0     0
+                #   1     1,2
+                #   2     3,4
+                #   3     5,6
+                if nprocessors-rank > npts_remainder:
+                    self._iterable = iterable[rank*npts_per_proc:(rank+1)*npts_per_proc]
+                # last 'npts_remainder' processes receive one additional entry
+                else:
+                    nover = npts_remainder - (nprocessors-rank) # total number of additional entries that have been assigned to previous processes, i.e. the additional offset in indexing that must be taken into account
+                    self._iterable = iterable[rank*npts_per_proc + nover:(rank+1)*npts_per_proc + nover + 1]
+        else:
+            self._iterable = iterable[rank*npts_per_proc:(rank+1)*npts_per_proc]
+
+    def __iter__(self):
+        return self._iterable.__iter__()
+
+    def next(self):
+        return self._iterable.next()
+
 def thin_array(array, frac_to_keep=0.5, new_npts=None):
     #
     # !!! shape of array must be (x, y), cannot be (x,) !!!
